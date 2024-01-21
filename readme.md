@@ -16,7 +16,7 @@ Para mais informações, há um repositório com as informações necessárias p
 
 ## 📝 Tabela de conteúdos
 - [Criando arquivo YAML do Deploy da Lambda Function no Editor de Textos (Passo 1)](#step1)
-- [Criando a pilha/stack no Cloudformation (Passo 2)](#step2)
+- [Criando a função Lambda (Passo 2)](#step2)
 - [Configurando API Gateway (Passo 3)](#step3)
 - [Referências](#documentation)
 
@@ -45,44 +45,118 @@ Para mais informações, há um repositório com as informações necessárias p
 
     - O código acima é a função mais simples possível para uso com o API Gateway, onde retornamos "Hello world!".
 
-2. Agora vamos compactar esse arquivo/pasta:
-    
-## ⚙️ Criando a pilha/stack no Cloudformation (Passo 2)<a name = "step2"></a>
+- Na linha de comando use um método compatível com seu sistema e CLI para compactar esse arquivo/pasta - "pkg-lambda-function".
 
-1. Acesse o console da AWS, pesquise por Cloudformation e crie uma pilha.
-    - Selecione "O modelo está pronto" e "Fazer upload de um arquivo de modelo".
-    - Faça o upload do arquivo YAML que você criou.
+## ⚙️ Criando a Função Lambda (Passo 2)<a name = "step2"></a>
 
-    <img src="./Screenshots/stack-creation.png" width="80%">
+1. Para começar, vamos criar um Bucket S3 temporário.
 
-    <br>
+- Com o AWS CLI instalado, execute os seguintes comandos:
 
-2. Dê um nome a pilha:
+  ```
+  $ aws s3api create-bucket --bucket=terraform-serverless-example --region=us-east-1
+  ```
 
-    <img src="./Screenshots/stack-name.png" width="80%">
+2. Faça o upload do seu arquivo zipado para este Bucket do S3:
 
-    <br>
+    ```
+    $ aws s3 cp pkge-lambda-function.zip s3://terraform-serverless-example/v1.0.0/pkge-lambda-function.zip
+    ```
 
-3. Pule a etapa 3 e siga para a etapa 4
+3. Criando a função Lambda
 
-    - Na etapa 4, confirme a caixa de seleção antes de prosseguir com envio da pipeline.
+  - **Observação**: um arquivo do terraform (**lambda.tf**) já está criado nesse repositório com todo o código de implantação. Mas caso queira editar da sua forma irei deixar o código logo abaixo.
 
-    <img src="./Screenshots/accept-stack.png" width="80%">
-    
-    <br>
+- CÓDIGO GENÉRICO:
 
-4. Agora se tudo ocorrer bem, serão criados os recursos especificados na pipeline.
+  ```yaml
+    provider "aws" {
+    region = "us-east-1"
+  }
 
-    - Espere alguns minutos até que sejam criados os recursos.
+  resource "aws_lambda_function" "example" {
+    function_name = "ServerlessExample"
 
-    <img src="./Screenshots/resources-creation.png" width="80%">
-    
-- Recursos criados:
+    # The bucket name as created earlier with "aws s3api create-bucket"
+    s3_bucket = "terraform-serverless-example"
+    s3_key    = "v1.0.0/pkge-lambda-function.zip"
 
-    <img src="./Screenshots/resources.png" width="80%">
+    # "main" is the filename within the zip file (main.js) and "handler"
+    # is the name of the property under which the handler function was
+    # exported in that file.
+    handler = "main.handler"
+    runtime = "nodejs8.10"
 
-    - Caso queira testar o código lambda, clique no ID físico da Lambda Function e faça o teste
-    - Talvez você encontre alguns erros ao executar o código lambda, esse código utilizado é apenas um exemplo, fique á vontade para fazer quaisquer alterações no código.
+    role = "${aws_iam_role.lambda_exec.arn}"
+  }
+
+  # IAM role which dictates what other AWS services the Lambda function
+  # may access.
+  resource "aws_iam_role" "lambda_exec" {
+    name = "serverless_example_lambda"
+
+    assume_role_policy = <<EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+  }
+  ```
+
+- Caso encontre algum erro ao editar, cheque a documentação de referência no final do READme.
+
+  > Observações:
+    - Cada função do Lambda deve ter uma função do IAM associada que determina o acesso que ela terá a outros serviços da AWS.
+    - A configuração acima específica uma função sem política de acesso, efetivamente não dando à função acesso a nenhum serviço da AWS, uma vez que nosso aplicativo de exemplo não requer tal acesso.
+
+<br>
+
+4. Inicie o terraform 
+
+- Na linha de comando digite:
+  
+  ```
+  terraform init
+  ```
+
+- Aplique a configuração:
+
+  ```
+  terraform apply
+  ```
+
+- Depois que a função for criada com sucesso, tente invocá-la usando a AWS CLI:
+
+  ```yaml
+  $ aws lambda invoke --region=us-east-1 --function-name=ServerlessExample output.txt
+  {"StatusCode": 200}
+  ```
+  ```yaml
+  $ cat output.txt
+  ```
+
+- Se tudo ocorrer bem, você terá um resultado semelhante á esse:
+
+  ```yaml
+  {
+    "statusCode":200,
+    "headers":{
+      "Content-Type":"text/html; charset=utf-8"
+    },
+    "body":"
+  Hello world!"
+  }
+  ```
 
 ## ⚙️ Configurando API Gateway (Passo 3)<a name = "step3"></a>
 
