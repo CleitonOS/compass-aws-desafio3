@@ -3,7 +3,7 @@
  <img max-width=400px height=100px src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Logo_CompassoUOL_Positivo.png/1200px-Logo_CompassoUOL_Positivo.png" alt="Project logo"></a>
 </p>
 
-<h1 align="center">Criar um terraform para deploy do API Gateway e uma função Lambda</h1> 
+<h1 align="center">Criando um terraform para deploy do API Gateway e uma função Lambda</h1> 
 <p align="center"><i></i></p>
 
 ## 📑 Requisitos
